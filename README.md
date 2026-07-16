@@ -179,3 +179,12 @@ https://www.linkedin.com/in/lucasvolgarini/
 
 GitHub:
 https://github.com/volgarini
+
+## 📈 Project Progress
+
+### v0.1.0
+- Initial project setup
+- Spring Boot 4.1 configured
+- Java 21 configured
+- PostgreSQL configured
+- Docker Compose configured
