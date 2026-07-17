@@ -2,7 +2,7 @@ services:
 
   postgres:
     image: postgres:17
-    container_name: banking-postgres
+    container_name: postgres
     restart: always
 
     environment:
@@ -18,7 +18,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: banking-pgadmin
+    container_name: pgadmin
 
     restart: always
 

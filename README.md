@@ -62,15 +62,14 @@ This project follows modern backend development practices:
 
 ```
 src
- ├── config
- ├── controller
- ├── dto
- ├── entity
- ├── exception
- ├── repository
- ├── security
- ├── service
- └── util
+├── main
+│   ├── java
+│   └── resources
+│       ├── application.yml
+│       └── db
+│           └── migration
+|           └── seed
+└── test
 ```
 
 ---
@@ -90,12 +89,17 @@ Authentication will be implemented using:
 
 PostgreSQL
 
-Main entities:
+This project uses **Flyway** for database versioning and migration management.
 
-- Customer
-- Account
-- Transaction
-- User
+Current migrations:
+
+```text
+V1__create_document_type_table.sql
+V2__insert_document_types.sql
+V3__create_customer_table.sql
+```
+
+Every time the application starts, Flyway automatically validates and applies pending database migrations.
 
 ---
 
@@ -137,7 +141,13 @@ http://localhost:8080/swagger-ui.html
 
 ## 📈 Roadmap
 
-- [ ] Project Setup
+- [x] Spring Boot project setup
+- [x] Docker Compose
+- [x] PostgreSQL
+- [x] Flyway
+- [x] Database schema versioning
+- [x] Document Type table
+- [x] Customer table
 - [ ] Customer CRUD
 - [ ] Account CRUD
 - [ ] Deposit API
@@ -184,7 +194,14 @@ https://github.com/volgarini
 
 ### v0.1.0
 - Initial project setup
-- Spring Boot 4.1 configured
+- Spring Boot 3.5.4 configured
 - Java 21 configured
 - PostgreSQL configured
 - Docker Compose configured
+
+### v0.2.0
+- Flyway configured
+- Database versioning implemented
+- Document Type table created
+- Customer table created
+- Initial document types seeded
