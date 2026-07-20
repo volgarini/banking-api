@@ -205,3 +205,23 @@ https://github.com/volgarini
 - Document Type table created
 - Customer table created
 - Initial document types seeded
+
+## 🚀 v0.3.0
+
+### Added
+
+- Customer CRUD API
+- Customer service layer
+- Customer repository
+- Customer mapper (MapStruct)
+- Request and Response DTOs
+- Business validation rules
+- Custom exceptions
+- Unit tests for CustomerService
+- Unit tests for DocumentType
+
+### Improved
+
+- Better separation of responsibilities
+- Consistent exception handling
+- Cleaner service implementation
