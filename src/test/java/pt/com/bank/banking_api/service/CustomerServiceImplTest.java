@@ -4,10 +4,11 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import pt.com.bank.banking_api.dto.request.CreateCustomerRequest;
 import pt.com.bank.banking_api.dto.request.UpdateCustomerRequest;
 import pt.com.bank.banking_api.dto.response.CustomerResponse;
+import pt.com.bank.banking_api.dto.response.PageResponse;
 import pt.com.bank.banking_api.entity.Customer;
 import pt.com.bank.banking_api.entity.DocumentType;
 import pt.com.bank.banking_api.exception.CustomerNotFoundException;
@@ -154,16 +156,17 @@ class CustomerServiceImplTest {
         @Test
         void shouldFindAllCustomers() {
 
-                when(customerRepository.findAll())
-                                .thenReturn(List.of(customer));
+                var pageable = PageRequest.of(0, 20);
+                when(customerRepository.findAll(pageable))
+                                .thenReturn(new PageImpl<>(java.util.List.of(customer), pageable, 1));
 
-                List<CustomerResponse> result = service.findAll();
+                PageResponse<CustomerResponse> result = service.findAll(pageable);
 
-                assertThat(result).hasSize(1);
-                assertThat(result.getFirst().email())
+                assertThat(result.content()).hasSize(1);
+                assertThat(result.content().getFirst().email())
                                 .isEqualTo(customer.getEmail());
 
-                verify(customerRepository).findAll();
+                verify(customerRepository).findAll(pageable);
         }
 
         @Test
@@ -297,6 +300,38 @@ class CustomerServiceImplTest {
 
                 assertThatThrownBy(() -> service.update(id, request))
                                 .isInstanceOf(CustomerNotFoundException.class);
+
+                verify(customerRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldThrowDocumentTypeNotFoundWhenUpdating() {
+
+                UUID nonexistentDocumentTypeId = UUID.randomUUID();
+                UpdateCustomerRequest request = new UpdateCustomerRequest(
+                                "Lucas Souza",
+                                "lucas@email.com",
+                                "+351912345678",
+                                nonexistentDocumentTypeId,
+                                "123456789");
+
+                when(customerRepository.findById(customer.getId()))
+                                .thenReturn(Optional.of(customer));
+
+                when(customerRepository.findByEmail(request.email()))
+                                .thenReturn(Optional.of(customer));
+
+                when(customerRepository.findByPhoneNumber(request.phoneNumber()))
+                                .thenReturn(Optional.of(customer));
+
+                when(customerRepository.findByDocumentNumber(request.documentNumber()))
+                                .thenReturn(Optional.of(customer));
+
+                when(documentTypeRepository.findById(nonexistentDocumentTypeId))
+                                .thenReturn(Optional.empty());
+
+                assertThatThrownBy(() -> service.update(customer.getId(), request))
+                                .isInstanceOf(pt.com.bank.banking_api.exception.DocumentTypeNotFoundException.class);
 
                 verify(customerRepository, never()).save(any());
         }

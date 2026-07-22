@@ -1,14 +1,16 @@
 package pt.com.bank.banking_api.service.impl;
 
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import pt.com.bank.banking_api.dto.request.CreateCustomerRequest;
 import pt.com.bank.banking_api.dto.request.UpdateCustomerRequest;
 import pt.com.bank.banking_api.dto.response.CustomerResponse;
+import pt.com.bank.banking_api.dto.response.PageResponse;
 import pt.com.bank.banking_api.entity.Customer;
 import pt.com.bank.banking_api.entity.DocumentType;
 import pt.com.bank.banking_api.exception.CustomerNotFoundException;
@@ -30,6 +32,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final CustomerMapper customerMapper;
 
     @Override
+    @Transactional
     public CustomerResponse create(CreateCustomerRequest request) {
 
         validateCustomer(request);
@@ -46,11 +49,9 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public List<CustomerResponse> findAll() {
-        return customerRepository.findAll()
-                .stream()
-                .map(customerMapper::toResponse)
-                .toList();
+    public PageResponse<CustomerResponse> findAll(Pageable pageable) {
+        return PageResponse.from(customerRepository.findAll(pageable)
+                .map(customerMapper::toResponse));
     }
 
     @Override
@@ -63,6 +64,7 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @Transactional
     public CustomerResponse update(UUID id, UpdateCustomerRequest request) {
 
         Customer customer = customerRepository.findById(id)
@@ -71,7 +73,7 @@ public class CustomerServiceImpl implements CustomerService {
         validateUpdate(customer, request);
 
         DocumentType documentType = documentTypeRepository.findById(request.documentTypeId())
-                .orElseThrow();
+                .orElseThrow(() -> new DocumentTypeNotFoundException(request.documentTypeId()));
 
         customerMapper.updateEntity(request, customer);
         customer.setDocumentType(documentType);
@@ -82,6 +84,7 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @Transactional
     public void delete(UUID id) {
 
         Customer customer = customerRepository.findById(id)

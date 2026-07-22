@@ -6,6 +6,7 @@ import pt.com.bank.banking_api.exception.DTO.ValidationErrorResponse;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -69,6 +70,17 @@ public class GlobalExceptionHandler {
         return buildResponse(
                 HttpStatus.CONFLICT,
                 ex.getMessage(),
+                request.getRequestURI());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request) {
+
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                "The request conflicts with existing data.",
                 request.getRequestURI());
     }
 

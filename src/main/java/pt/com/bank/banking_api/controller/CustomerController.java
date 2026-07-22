@@ -1,8 +1,12 @@
 package pt.com.bank.banking_api.controller;
 
-import java.util.List;
 import java.util.UUID;
+import java.util.Set;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import pt.com.bank.banking_api.dto.request.CreateCustomerRequest;
 import pt.com.bank.banking_api.dto.request.UpdateCustomerRequest;
 import pt.com.bank.banking_api.dto.response.CustomerResponse;
+import pt.com.bank.banking_api.dto.response.PageResponse;
 import pt.com.bank.banking_api.service.CustomerService;
 
 @Tag(name = "Customers", description = "Customer management API")
@@ -30,6 +35,9 @@ import pt.com.bank.banking_api.service.CustomerService;
 @RequestMapping("/api/v1/customers")
 @RequiredArgsConstructor
 public class CustomerController {
+
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("fullName", "email", "createdAt");
 
     private final CustomerService customerService;
 
@@ -56,9 +64,10 @@ public class CustomerController {
     @ApiResponse(responseCode = "200", description = "Customers found")
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public List<CustomerResponse> findAll() {
+    public PageResponse<CustomerResponse> findAll(
+            @PageableDefault(size = 20, sort = "fullName") Pageable pageable) {
 
-        return customerService.findAll();
+        return customerService.findAll(toSafePageable(pageable));
     }
 
     @Operation(
@@ -106,5 +115,20 @@ public class CustomerController {
             @PathVariable UUID id) {
 
         customerService.delete(id);
+    }
+
+    private Pageable toSafePageable(Pageable pageable) {
+        var orders = pageable.getSort().stream()
+                .filter(order -> ALLOWED_SORT_FIELDS.contains(order.getProperty()))
+                .toList();
+
+        Sort sort = orders.isEmpty()
+                ? Sort.by(Sort.Order.asc("fullName"))
+                : Sort.by(orders);
+
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                Math.min(pageable.getPageSize(), MAX_PAGE_SIZE),
+                sort);
     }
 }
