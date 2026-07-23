@@ -116,6 +116,7 @@ Frameworks:
 
 - JUnit 5
 - Mockito
+- JaCoCo Code Coverage
 
 ---
 
@@ -128,6 +129,13 @@ docker compose up
 ```
 
 ---
+
+### DevOps
+
+- GitHub Actions
+- Continuous Integration
+- Automated Build
+- Automated Tests
 
 ## 📖 API Documentation
 
@@ -155,10 +163,10 @@ http://localhost:8080/swagger-ui.html
 - [ ] Transfer API
 - [ ] Transaction History
 - [ ] JWT Authentication
-- [ ] Docker Support
-- [ ] Unit Tests
-- [ ] Integration Tests
-- [ ] GitHub Actions
+- [x] Docker Support
+- [x] Unit Tests
+- [x] Integration Tests
+- [x] GitHub Actions
 - [ ] API Documentation
 
 ---
@@ -225,3 +233,13 @@ https://github.com/volgarini
 - Better separation of responsibilities
 - Consistent exception handling
 - Cleaner service implementation
+
+### v0.4.0
+
+- GitHub Actions Continuous Integration
+- Automated Maven build
+- Automated unit tests
+- JaCoCo code coverage reports
+- Maven dependency cache
+- Build artifacts upload
+- Improved development workflow
