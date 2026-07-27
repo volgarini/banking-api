@@ -31,7 +31,7 @@ import pt.com.bank.banking_api.repository.DocumentTypeRepository;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class BankingApiApplicationTests {
 
 	@Container

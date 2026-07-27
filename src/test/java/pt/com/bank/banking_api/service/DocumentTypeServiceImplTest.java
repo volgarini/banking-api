@@ -16,7 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import pt.com.bank.banking_api.dto.response.DocumentTypeResponse;
 import pt.com.bank.banking_api.entity.DocumentType;
-import pt.com.bank.banking_api.exception.DocumentTypeNotFoundException;
+import pt.com.bank.banking_api.exception.resources.DocumentTypeNotFoundException;
 import pt.com.bank.banking_api.mapper.DocumentTypeMapper;
 import pt.com.bank.banking_api.repository.DocumentTypeRepository;
 import pt.com.bank.banking_api.service.impl.DocumentTypeServiceImpl;

@@ -13,15 +13,15 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import pt.com.bank.banking_api.dto.response.CustomerResponse;
 import pt.com.bank.banking_api.dto.response.PageResponse;
-import pt.com.bank.banking_api.exception.CustomerNotFoundException;
-import pt.com.bank.banking_api.exception.EmailAlreadyExistsException;
+import pt.com.bank.banking_api.exception.conflicts.EmailAlreadyExistsException;
+import pt.com.bank.banking_api.exception.resources.CustomerNotFoundException;
 import pt.com.bank.banking_api.service.CustomerService;
 
 @WebMvcTest(CustomerController.class)
@@ -30,7 +30,7 @@ class CustomerControllerTest {
     @Autowired
     MockMvc mvc;
 
-    @MockBean
+    @MockitoBean
     CustomerService service;
 
     @Test
@@ -114,7 +114,7 @@ class CustomerControllerTest {
                         .content(customerRequest(documentTypeId)))
                 .andExpect(status().isConflict())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .jsonPath("$.message").value("The request conflicts with existing data."));
+                        .jsonPath("$.message").value("The operation could not be completed because the data conflicts with existing records."));
     }
 
     @Test

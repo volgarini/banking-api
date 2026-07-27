@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record UpdateCustomerRequest(
 
-         @Schema(
+        @Schema(
                 description = "Customer full name",
                 example = "John Doe"
         )

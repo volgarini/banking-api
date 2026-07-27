@@ -1,4 +1,4 @@
-package pt.com.bank.banking_api.exception.DTO;
+package pt.com.bank.banking_api.exception.dto;
 
 import java.time.LocalDateTime;
 import java.util.Map;

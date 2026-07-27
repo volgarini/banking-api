@@ -23,10 +23,10 @@ import pt.com.bank.banking_api.dto.response.CustomerResponse;
 import pt.com.bank.banking_api.dto.response.PageResponse;
 import pt.com.bank.banking_api.entity.Customer;
 import pt.com.bank.banking_api.entity.DocumentType;
-import pt.com.bank.banking_api.exception.CustomerNotFoundException;
-import pt.com.bank.banking_api.exception.DocumentAlreadyExistsException;
-import pt.com.bank.banking_api.exception.EmailAlreadyExistsException;
-import pt.com.bank.banking_api.exception.PhoneNumberAlreadyExistsException;
+import pt.com.bank.banking_api.exception.conflicts.DocumentAlreadyExistsException;
+import pt.com.bank.banking_api.exception.conflicts.EmailAlreadyExistsException;
+import pt.com.bank.banking_api.exception.conflicts.PhoneNumberAlreadyExistsException;
+import pt.com.bank.banking_api.exception.resources.CustomerNotFoundException;
 import pt.com.bank.banking_api.mapper.CustomerMapper;
 import pt.com.bank.banking_api.repository.CustomerRepository;
 import pt.com.bank.banking_api.repository.DocumentTypeRepository;
@@ -115,7 +115,7 @@ class CustomerServiceImplTest {
                                 .thenReturn(true);
 
                 assertThatThrownBy(() -> service.create(createRequest))
-                                .isInstanceOf(pt.com.bank.banking_api.exception.EmailAlreadyExistsException.class);
+                                .isInstanceOf(pt.com.bank.banking_api.exception.conflicts.EmailAlreadyExistsException.class);
 
                 verify(customerRepository, never()).save(any());
         }
@@ -196,7 +196,7 @@ class CustomerServiceImplTest {
                                 .thenReturn(Optional.empty());
 
                 assertThatThrownBy(() -> service.findById(id))
-                                .isInstanceOf(pt.com.bank.banking_api.exception.CustomerNotFoundException.class);
+                                .isInstanceOf(pt.com.bank.banking_api.exception.resources.CustomerNotFoundException.class);
 
                 verify(customerRepository).findById(id);
         }
@@ -221,7 +221,7 @@ class CustomerServiceImplTest {
                                 .thenReturn(Optional.empty());
 
                 assertThatThrownBy(() -> service.delete(id))
-                                .isInstanceOf(pt.com.bank.banking_api.exception.CustomerNotFoundException.class);
+                                .isInstanceOf(pt.com.bank.banking_api.exception.resources.CustomerNotFoundException.class);
 
                 verify(customerRepository).findById(id);
                 verify(customerRepository, never()).delete(any());
@@ -243,7 +243,7 @@ class CustomerServiceImplTest {
                                 .thenReturn(Optional.empty());
 
                 assertThatThrownBy(() -> service.create(createRequest))
-                                .isInstanceOf(pt.com.bank.banking_api.exception.DocumentTypeNotFoundException.class);
+                                .isInstanceOf(pt.com.bank.banking_api.exception.resources.DocumentTypeNotFoundException.class);
 
                 verify(customerRepository, never()).save(any());
         }
@@ -331,7 +331,7 @@ class CustomerServiceImplTest {
                                 .thenReturn(Optional.empty());
 
                 assertThatThrownBy(() -> service.update(customer.getId(), request))
-                                .isInstanceOf(pt.com.bank.banking_api.exception.DocumentTypeNotFoundException.class);
+                                .isInstanceOf(pt.com.bank.banking_api.exception.resources.DocumentTypeNotFoundException.class);
 
                 verify(customerRepository, never()).save(any());
         }
