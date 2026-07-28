@@ -9,9 +9,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import pt.com.bank.banking_api.entity.Account;
 import pt.com.bank.banking_api.entity.Customer;
@@ -22,10 +21,9 @@ import pt.com.bank.banking_api.factory.entity.AccountFactory;
 import pt.com.bank.banking_api.factory.entity.CustomerFactory;
 import pt.com.bank.banking_api.factory.entity.DocumentTypeFactory;
 
-@SpringBootTest
-@Testcontainers(disabledWithoutDocker = true)
+@DataJpaTest
+@ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Transactional
 class AccountRepositoryIT {
     @Autowired
     private AccountRepository accountRepository;
