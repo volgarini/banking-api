@@ -185,10 +185,10 @@ http://localhost:8080/swagger-ui.html
 - [x] Unit Tests
 - [x] GitHub Actions
 - [x] Swagger
+- [x] Account Module
 
 ### Planned
 
-- [ ] Account Module
 - [ ] Transaction Module
 - [ ] Balance Management
 - [ ] JWT Authentication
