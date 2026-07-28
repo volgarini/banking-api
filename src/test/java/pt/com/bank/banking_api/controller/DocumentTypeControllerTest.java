@@ -1,11 +1,11 @@
 package pt.com.bank.banking_api.controller;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,55 +14,92 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import pt.com.bank.banking_api.dto.response.DocumentTypeResponse;
+import pt.com.bank.banking_api.entity.DocumentType;
+import pt.com.bank.banking_api.exception.resources.DocumentTypeNotFoundException;
+import pt.com.bank.banking_api.factory.constants.DocumentTypeTestConstants;
+import pt.com.bank.banking_api.factory.entity.DocumentTypeFactory;
 import pt.com.bank.banking_api.service.DocumentTypeService;
 
 @WebMvcTest(DocumentTypeController.class)
 class DocumentTypeControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @MockitoBean
-    private DocumentTypeService service;
+        @MockitoBean
+        private DocumentTypeService documentTypeService;
 
-    @Test
-    void shouldReturnAllDocumentTypes() throws Exception {
+        @Test
+        void findAll_shouldReturnOk() throws Exception {
 
-        UUID id = UUID.randomUUID();
+                // Arrange
+                DocumentType documentType = DocumentTypeFactory.create();
 
-        when(service.findAll())
-                .thenReturn(List.of(
-                        new DocumentTypeResponse(
-                                id,
-                                "CPF",
-                                "Brazilian CPF"
-                        )
-                ));
+                List<DocumentTypeResponse> responses = List.of(
+                                new DocumentTypeResponse(
+                                                documentType.getId(),
+                                                documentType.getCode(),
+                                                documentType.getDescription()));
 
-        mockMvc.perform(get("/api/v1/document-types"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].code").value("CPF"))
-                .andExpect(jsonPath("$[0].description").value("Brazilian CPF"));
-    }
+                when(documentTypeService.findAll())
+                                .thenReturn(responses);
 
-    @Test
-    void shouldReturnDocumentTypeById() throws Exception {
+                // Act & Assert
+                mockMvc.perform(get("/api/v1/document-types"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$").isArray())
+                                .andExpect(jsonPath("$.length()").value(1))
+                                .andExpect(jsonPath("$[0].id")
+                                                .value(DocumentTypeTestConstants.DOCUMENT_TYPE_ID.toString()))
+                                .andExpect(jsonPath("$[0].code")
+                                                .value(DocumentTypeTestConstants.DEFAULT_DOCUMENT));
 
-        UUID id = UUID.randomUUID();
+                verify(documentTypeService).findAll();
+        }
 
-        when(service.findById(id))
-                .thenReturn(
-                        new DocumentTypeResponse(
-                                id,
-                                "PASSPORT",
-                                "Passport"
-                        )
-                );
+        @Test
+        void findById_shouldReturnOk() throws Exception {
 
-        mockMvc.perform(get("/api/v1/document-types/{id}", id))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("PASSPORT"))
-                .andExpect(jsonPath("$.description").value("Passport"));
-    }
+                // Arrange
+                DocumentType documentType = DocumentTypeFactory.create();
 
+                DocumentTypeResponse response = new DocumentTypeResponse(
+                                documentType.getId(),
+                                documentType.getCode(),
+                                documentType.getDescription());
+
+                when(documentTypeService.findById(
+                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID))
+                                .thenReturn(response);
+
+                // Act & Assert
+                mockMvc.perform(get("/api/v1/document-types/{id}",
+                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.id")
+                                                .value(DocumentTypeTestConstants.DOCUMENT_TYPE_ID.toString()))
+                                .andExpect(jsonPath("$.code")
+                                                .value(DocumentTypeTestConstants.DEFAULT_DOCUMENT));
+
+                verify(documentTypeService)
+                                .findById(DocumentTypeTestConstants.DOCUMENT_TYPE_ID);
+        }
+
+        @Test
+        void findById_shouldReturnNotFound() throws Exception {
+
+                // Arrange
+                when(documentTypeService.findById(
+                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID))
+                                .thenThrow(new DocumentTypeNotFoundException(
+                                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID));
+
+                // Act & Assert
+                mockMvc.perform(get("/api/v1/document-types/{id}",
+                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID))
+                                .andExpect(status().isNotFound());
+
+                verify(documentTypeService)
+                                .findById(DocumentTypeTestConstants.DOCUMENT_TYPE_ID);
+        }
 }

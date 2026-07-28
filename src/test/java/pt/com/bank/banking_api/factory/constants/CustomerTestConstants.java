@@ -15,4 +15,5 @@ public final class CustomerTestConstants {
     public static final String CUSTOMER_PHONE_NUMBER = "+351912345678";
 
     public static final String CUSTOMER_DOCUMENT_NUMBER = "123456789";
+
 }

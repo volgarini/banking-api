@@ -12,6 +12,7 @@ public final class DocumentTypeFactory {
         return DocumentType.builder()
                 .id(DocumentTypeTestConstants.DOCUMENT_TYPE_ID)
                 .code(DocumentTypeTestConstants.DEFAULT_DOCUMENT)
+                .description(DocumentTypeTestConstants.DEFAULT_DESCRIPTION)
                 .build();
     }
 

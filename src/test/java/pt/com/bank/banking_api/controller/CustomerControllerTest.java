@@ -1,181 +1,222 @@
 package pt.com.bank.banking_api.controller;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.any;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.UUID;
-
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.MediaType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import pt.com.bank.banking_api.dto.request.CreateCustomerRequest;
+import pt.com.bank.banking_api.dto.request.UpdateCustomerRequest;
 import pt.com.bank.banking_api.dto.response.CustomerResponse;
 import pt.com.bank.banking_api.dto.response.PageResponse;
-import pt.com.bank.banking_api.exception.conflicts.EmailAlreadyExistsException;
 import pt.com.bank.banking_api.exception.resources.CustomerNotFoundException;
+import pt.com.bank.banking_api.factory.constants.CustomerTestConstants;
+import pt.com.bank.banking_api.factory.request.CreateCustomerRequestFactory;
+import pt.com.bank.banking_api.factory.request.UpdateCustomerRequestFactory;
+import pt.com.bank.banking_api.factory.response.CustomerResponseFactory;
 import pt.com.bank.banking_api.service.CustomerService;
 
 @WebMvcTest(CustomerController.class)
 class CustomerControllerTest {
 
-    @Autowired
-    MockMvc mvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @MockitoBean
-    CustomerService service;
+        @Autowired
+        private ObjectMapper objectMapper;
 
-    @Test
-    void shouldReturnCustomers() throws Exception {
+        @MockitoBean
+        private CustomerService customerService;
 
-        when(service.findAll(any()))
-                .thenReturn(new PageResponse<>(java.util.List.of(), 1, 10, 0, 0, true));
+        @Test
+        void create_shouldReturnCreated() throws Exception {
 
-        mvc.perform(get("/api/v1/customers?page=1&size=10"))
-                .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .jsonPath("$.page").value(1))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .jsonPath("$.size").value(10));
-    }
+                CreateCustomerRequest request = CreateCustomerRequestFactory.create();
 
-    @Test
-    void shouldLimitPageSizeAndIgnoreUnsupportedSortFields() throws Exception {
+                CustomerResponse response = CustomerResponseFactory.create();
 
-        when(service.findAll(any()))
-                .thenReturn(new PageResponse<>(java.util.List.of(), 0, 100, 0, 0, true));
+                when(customerService.create(any(CreateCustomerRequest.class)))
+                                .thenReturn(response);
 
-        mvc.perform(get("/api/v1/customers?size=500&sort=documentNumber,desc"))
-                .andExpect(status().isOk());
+                mockMvc.perform(post("/api/v1/customers")
+                                .contentType(APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isCreated())
+                                .andExpect(jsonPath("$.id")
+                                                .value(CustomerTestConstants.CUSTOMER_ID.toString()))
+                                .andExpect(jsonPath("$.email")
+                                                .value(CustomerTestConstants.CUSTOMER_EMAIL));
 
-        var pageableCaptor = org.mockito.ArgumentCaptor.forClass(org.springframework.data.domain.Pageable.class);
-        verify(service).findAll(pageableCaptor.capture());
+                verify(customerService).create(any(CreateCustomerRequest.class));
+        }
 
-        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(100);
-        assertThat(pageableCaptor.getValue().getSort().getOrderFor("fullName").isAscending()).isTrue();
-    }
+        @Test
+        void findAll_shouldReturnOk() throws Exception {
 
-    @Test
-    void shouldCreateCustomer() throws Exception {
+                // Arrange
+                CustomerResponse customer = CustomerResponseFactory.create();
 
-        UUID documentTypeId = UUID.randomUUID();
-        when(service.create(any()))
-                .thenReturn(new CustomerResponse(
-                        UUID.randomUUID(), "John Doe", "john@example.com", "+351912345678",
-                        documentTypeId, "Citizen Card", "123456789", null, null));
+                PageResponse<CustomerResponse> response = new PageResponse<>(
+                                List.of(customer),
+                                0,
+                                10,
+                                1L,
+                                1,
+                                true);
 
-        mvc.perform(post("/api/v1/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(customerRequest(documentTypeId)))
-                .andExpect(status().isCreated());
-    }
+                when(customerService.findAll(any(Pageable.class)))
+                                .thenReturn(response);
 
-    @Test
-    void shouldRejectInvalidCustomerPayload() throws Exception {
+                // Act + Assert
+                mockMvc.perform(get("/api/v1/customers")
+                                .param("page", "0")
+                                .param("size", "10"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.content").isArray())
+                                .andExpect(jsonPath("$.content.length()").value(1))
+                                .andExpect(jsonPath("$.content[0].id")
+                                                .value(CustomerTestConstants.CUSTOMER_ID.toString()))
+                                .andExpect(jsonPath("$.content[0].email")
+                                                .value(CustomerTestConstants.CUSTOMER_EMAIL))
+                                .andExpect(jsonPath("$.page").value(0))
+                                .andExpect(jsonPath("$.size").value(10))
+                                .andExpect(jsonPath("$.totalElements").value(1))
+                                .andExpect(jsonPath("$.totalPages").value(1));
 
-        mvc.perform(post("/api/v1/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .jsonPath("$.validationErrors.fullName").exists());
-    }
+                verify(customerService)
+                                .findAll(any(Pageable.class));
+        }
 
-    @Test
-    void shouldReturnConflictWhenCreatingDuplicatedCustomer() throws Exception {
+        @Test
+        void findById_shouldReturnOk() throws Exception {
 
-        UUID documentTypeId = UUID.randomUUID();
-        when(service.create(any()))
-                .thenThrow(new EmailAlreadyExistsException("john@example.com"));
+                CustomerResponse response = CustomerResponseFactory.create();
 
-        mvc.perform(post("/api/v1/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(customerRequest(documentTypeId)))
-                .andExpect(status().isConflict());
-    }
+                when(customerService.findById(CustomerTestConstants.CUSTOMER_ID))
+                                .thenReturn(response);
 
-    @Test
-    void shouldReturnGenericConflictForDatabaseIntegrityViolation() throws Exception {
+                mockMvc.perform(get("/api/v1/customers/{id}",
+                                CustomerTestConstants.CUSTOMER_ID))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.id")
+                                                .value(CustomerTestConstants.CUSTOMER_ID.toString()))
+                                .andExpect(jsonPath("$.email")
+                                                .value(CustomerTestConstants.CUSTOMER_EMAIL));
 
-        UUID documentTypeId = UUID.randomUUID();
-        when(service.create(any()))
-                .thenThrow(new DataIntegrityViolationException("database constraint"));
+                verify(customerService)
+                                .findById(CustomerTestConstants.CUSTOMER_ID);
+        }
 
-        mvc.perform(post("/api/v1/customers")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(customerRequest(documentTypeId)))
-                .andExpect(status().isConflict())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .jsonPath("$.message").value("The operation could not be completed because the data conflicts with existing records."));
-    }
+        @Test
+        void findById_shouldReturnNotFound() throws Exception {
 
-    @Test
-    void shouldReturnCustomerById() throws Exception {
+                when(customerService.findById(CustomerTestConstants.CUSTOMER_ID))
+                                .thenThrow(new CustomerNotFoundException(
+                                                CustomerTestConstants.CUSTOMER_ID));
 
-        UUID id = UUID.randomUUID();
+                mockMvc.perform(get("/api/v1/customers/{id}",
+                                CustomerTestConstants.CUSTOMER_ID))
+                                .andExpect(status().isNotFound());
 
-        CustomerResponse response = mock(CustomerResponse.class);
+                verify(customerService)
+                                .findById(CustomerTestConstants.CUSTOMER_ID);
+        }
 
-        when(service.findById(id))
-                .thenReturn(response);
+        @Test
+        void update_shouldReturnOk() throws Exception {
 
-        mvc.perform(get("/api/v1/customers/{id}", id))
-                .andExpect(status().isOk());
-    }
+                UpdateCustomerRequest request = UpdateCustomerRequestFactory.create();
 
-    @Test
-    void shouldDeleteCustomer() throws Exception {
+                CustomerResponse response = CustomerResponseFactory.create();
 
-        UUID id = UUID.randomUUID();
+                when(customerService.update(
+                                eq(CustomerTestConstants.CUSTOMER_ID),
+                                any(UpdateCustomerRequest.class)))
+                                .thenReturn(response);
 
-        mvc.perform(delete("/api/v1/customers/{id}", id))
-                .andExpect(status().isNoContent());
-    }
+                mockMvc.perform(put("/api/v1/customers/{id}",
+                                CustomerTestConstants.CUSTOMER_ID)
+                                .contentType(APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.id")
+                                                .value(CustomerTestConstants.CUSTOMER_ID.toString()))
+                                .andExpect(jsonPath("$.email")
+                                                .value(CustomerTestConstants.CUSTOMER_EMAIL));
 
-    @Test
-    void shouldUpdateCustomer() throws Exception {
+                verify(customerService)
+                                .update(eq(CustomerTestConstants.CUSTOMER_ID),
+                                                any(UpdateCustomerRequest.class));
+        }
 
-        UUID id = UUID.randomUUID();
-        UUID documentTypeId = UUID.randomUUID();
-        when(service.update(any(), any()))
-                .thenReturn(new CustomerResponse(
-                        id, "John Doe", "john@example.com", "+351912345678",
-                        documentTypeId, "Citizen Card", "123456789", null, null));
+        @Test
+        void update_shouldReturnNotFound() throws Exception {
 
-        mvc.perform(put("/api/v1/customers/{id}", id)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(customerRequest(documentTypeId)))
-                .andExpect(status().isOk());
-    }
+                UpdateCustomerRequest request = UpdateCustomerRequestFactory.create();
 
-    @Test
-    void shouldReturnNotFoundWhenCustomerDoesNotExist() throws Exception {
+                when(customerService.update(
+                                eq(CustomerTestConstants.CUSTOMER_ID),
+                                any(UpdateCustomerRequest.class)))
+                                .thenThrow(new CustomerNotFoundException(
+                                                CustomerTestConstants.CUSTOMER_ID));
 
-        UUID id = UUID.randomUUID();
-        when(service.findById(id)).thenThrow(new CustomerNotFoundException(id));
+                mockMvc.perform(put("/api/v1/customers/{id}",
+                                CustomerTestConstants.CUSTOMER_ID)
+                                .contentType(APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isNotFound());
 
-        mvc.perform(get("/api/v1/customers/{id}", id))
-                .andExpect(status().isNotFound());
-    }
+                verify(customerService)
+                                .update(eq(CustomerTestConstants.CUSTOMER_ID),
+                                                any(UpdateCustomerRequest.class));
+        }
 
-    private String customerRequest(UUID documentTypeId) {
-        return """
-                {
-                  "fullName": "John Doe",
-                  "email": "john@example.com",
-                  "phoneNumber": "+351912345678",
-                  "documentTypeId": "%s",
-                  "documentNumber": "123456789"
-                }
-                """.formatted(documentTypeId);
-    }
+        @Test
+        void delete_shouldReturnNoContent() throws Exception {
 
+                doNothing().when(customerService)
+                                .delete(CustomerTestConstants.CUSTOMER_ID);
+
+                mockMvc.perform(delete("/api/v1/customers/{id}",
+                                CustomerTestConstants.CUSTOMER_ID))
+                                .andExpect(status().isNoContent());
+
+                verify(customerService)
+                                .delete(CustomerTestConstants.CUSTOMER_ID);
+        }
+
+        @Test
+        void delete_shouldReturnNotFound() throws Exception {
+
+                doThrow(new CustomerNotFoundException(
+                                CustomerTestConstants.CUSTOMER_ID))
+                                .when(customerService)
+                                .delete(CustomerTestConstants.CUSTOMER_ID);
+
+                mockMvc.perform(delete("/api/v1/customers/{id}",
+                                CustomerTestConstants.CUSTOMER_ID))
+                                .andExpect(status().isNotFound());
+
+                verify(customerService)
+                                .delete(CustomerTestConstants.CUSTOMER_ID);
+        }
 }

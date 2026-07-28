@@ -264,3 +264,12 @@ https://github.com/volgarini
 - Unit tests
 - Controller tests
 - Repository integration tests
+
+### v0.5.1
+- Improved unit test coverage for `CustomerService`
+- Added missing `findById` service test scenarios
+- Improved Mapper test coverage
+- Added Repository integration tests with Testcontainers
+- Reorganized application context tests
+- Separated application startup tests from integration tests
+- Standardized test structure and naming

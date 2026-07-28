@@ -1,21 +1,26 @@
 package pt.com.bank.banking_api.service;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mapstruct.factory.Mappers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import pt.com.bank.banking_api.dto.request.CreateCustomerRequest;
 import pt.com.bank.banking_api.dto.request.UpdateCustomerRequest;
@@ -27,6 +32,13 @@ import pt.com.bank.banking_api.exception.conflicts.DocumentAlreadyExistsExceptio
 import pt.com.bank.banking_api.exception.conflicts.EmailAlreadyExistsException;
 import pt.com.bank.banking_api.exception.conflicts.PhoneNumberAlreadyExistsException;
 import pt.com.bank.banking_api.exception.resources.CustomerNotFoundException;
+import pt.com.bank.banking_api.exception.resources.DocumentTypeNotFoundException;
+import pt.com.bank.banking_api.factory.constants.CustomerTestConstants;
+import pt.com.bank.banking_api.factory.entity.CustomerFactory;
+import pt.com.bank.banking_api.factory.entity.DocumentTypeFactory;
+import pt.com.bank.banking_api.factory.request.CreateCustomerRequestFactory;
+import pt.com.bank.banking_api.factory.request.UpdateCustomerRequestFactory;
+import pt.com.bank.banking_api.factory.response.CustomerResponseFactory;
 import pt.com.bank.banking_api.mapper.CustomerMapper;
 import pt.com.bank.banking_api.repository.CustomerRepository;
 import pt.com.bank.banking_api.repository.DocumentTypeRepository;
@@ -41,389 +53,513 @@ class CustomerServiceImplTest {
         @Mock
         private DocumentTypeRepository documentTypeRepository;
 
-        private final CustomerMapper mapper = Mappers.getMapper(CustomerMapper.class);
+        @Mock
+        private CustomerMapper customerMapper;
 
         @InjectMocks
-        private CustomerServiceImpl service;
-
-        private DocumentType documentType;
-        private Customer customer;
-        private CreateCustomerRequest createRequest;
-
-        @BeforeEach
-        void setUp() {
-
-                documentType = DocumentType.builder()
-                                .id(UUID.randomUUID())
-                                .code("CC")
-                                .description("Citizen Card")
-                                .build();
-
-                customer = Customer.builder()
-                                .id(UUID.randomUUID())
-                                .fullName("Lucas Souza")
-                                .email("lucas@email.com")
-                                .phoneNumber("+351912345678")
-                                .documentNumber("123456789")
-                                .documentType(documentType)
-                                .build();
-
-                createRequest = new CreateCustomerRequest(
-                                "Lucas Souza",
-                                "lucas@email.com",
-                                "+351912345678",
-                                documentType.getId(),
-                                "123456789");
-
-                service = new CustomerServiceImpl(
-                                customerRepository,
-                                documentTypeRepository,
-                                mapper);
-        }
+        private CustomerServiceImpl customerService;
 
         @Test
-        void shouldCreateCustomer() {
+        void create_shouldCreateCustomerSuccessfully() {
 
-                when(customerRepository.existsByEmail(any()))
+                CreateCustomerRequest request = CreateCustomerRequestFactory.create();
+
+                Customer customer = CustomerFactory.create(DocumentTypeFactory.create());
+
+                CustomerResponse response = CustomerResponseFactory.create();
+
+                DocumentType documentType = DocumentTypeFactory.create();
+
+                when(customerRepository.existsByEmail(request.email()))
                                 .thenReturn(false);
 
-                when(customerRepository.existsByPhoneNumber(any()))
+                when(customerRepository.existsByPhoneNumber(request.phoneNumber()))
                                 .thenReturn(false);
 
-                when(customerRepository.existsByDocumentNumber(any()))
+                when(customerRepository.existsByDocumentNumber(request.documentNumber()))
                                 .thenReturn(false);
 
-                when(documentTypeRepository.findById(documentType.getId()))
+                when(documentTypeRepository.findById(request.documentTypeId()))
                                 .thenReturn(Optional.of(documentType));
 
-                when(customerRepository.save(any(Customer.class)))
+                when(customerMapper.toEntity(request))
                                 .thenReturn(customer);
 
-                CustomerResponse response = service.create(createRequest);
+                when(customerRepository.save(customer))
+                                .thenReturn(customer);
 
-                assertThat(response).isNotNull();
-                assertThat(response.fullName()).isEqualTo(customer.getFullName());
-                assertThat(response.email()).isEqualTo(customer.getEmail());
+                when(customerMapper.toResponse(customer))
+                                .thenReturn(response);
 
-                verify(customerRepository).save(any(Customer.class));
+                CustomerResponse result = customerService.create(request);
+
+                assertNotNull(result);
+                assertEquals(response, result);
+
+                verify(customerRepository).save(customer);
         }
 
         @Test
-        void shouldThrowEmailAlreadyExists() {
+        void create_shouldThrowDocumentTypeNotFoundException() {
 
-                when(customerRepository.existsByEmail(createRequest.email()))
-                                .thenReturn(true);
+                // Arrange
+                CreateCustomerRequest request = CreateCustomerRequestFactory.create();
 
-                assertThatThrownBy(() -> service.create(createRequest))
-                                .isInstanceOf(pt.com.bank.banking_api.exception.conflicts.EmailAlreadyExistsException.class);
-
-                verify(customerRepository, never()).save(any());
-        }
-
-        @Test
-        void shouldThrowPhoneAlreadyExists() {
-
-                when(customerRepository.existsByEmail(any()))
+                when(customerRepository.existsByEmail(request.email()))
                                 .thenReturn(false);
 
-                when(customerRepository.existsByPhoneNumber(any()))
-                                .thenReturn(true);
+                when(customerRepository.existsByPhoneNumber(request.phoneNumber()))
+                                .thenReturn(false);
 
-                assertThatThrownBy(() -> service.create(createRequest))
-                                .isInstanceOf(PhoneNumberAlreadyExistsException.class);
+                when(customerRepository.existsByDocumentNumber(request.documentNumber()))
+                                .thenReturn(false);
 
-                verify(customerRepository, never()).save(any());
+                when(documentTypeRepository.findById(request.documentTypeId()))
+                                .thenReturn(Optional.empty());
+
+                // Act + Assert
+                assertThrows(
+                                DocumentTypeNotFoundException.class,
+                                () -> customerService.create(request));
+
+                verify(customerRepository).existsByEmail(request.email());
+                verify(customerRepository).existsByPhoneNumber(request.phoneNumber());
+                verify(customerRepository).existsByDocumentNumber(request.documentNumber());
+
+                verify(documentTypeRepository).findById(request.documentTypeId());
+
+                verify(customerRepository, never()).save(any(Customer.class));
+                verify(customerMapper, never()).toEntity(any(CreateCustomerRequest.class));
+                verify(customerMapper, never()).toResponse(any(Customer.class));
         }
 
         @Test
-        void shouldThrowDocumentAlreadyExists() {
+        void create_shouldThrowPhoneNumberAlreadyExistsException() {
 
-                when(customerRepository.existsByEmail(any()))
+                // Arrange
+                CreateCustomerRequest request = CreateCustomerRequestFactory.create();
+
+                when(customerRepository.existsByEmail(request.email()))
                                 .thenReturn(false);
 
-                when(customerRepository.existsByPhoneNumber(any()))
-                                .thenReturn(false);
-
-                when(customerRepository.existsByDocumentNumber(any()))
+                when(customerRepository.existsByPhoneNumber(request.phoneNumber()))
                                 .thenReturn(true);
 
-                assertThatThrownBy(() -> service.create(createRequest))
-                                .isInstanceOf(DocumentAlreadyExistsException.class);
+                // Act + Assert
+                assertThrows(
+                                PhoneNumberAlreadyExistsException.class,
+                                () -> customerService.create(request));
 
-                verify(customerRepository, never()).save(any());
+                verify(customerRepository).existsByEmail(request.email());
+                verify(customerRepository).existsByPhoneNumber(request.phoneNumber());
+
+                verify(customerRepository, never())
+                                .existsByDocumentNumber(anyString());
+
+                verifyNoInteractions(documentTypeRepository);
+
+                verify(customerRepository, never())
+                                .save(any(Customer.class));
+
+                verifyNoInteractions(customerMapper);
         }
 
         @Test
-        void shouldFindAllCustomers() {
+        void create_shouldThrowEmailAlreadyExistsException() {
+                // Arrange
+                CreateCustomerRequest request = CreateCustomerRequestFactory.create();
 
-                var pageable = PageRequest.of(0, 20);
+                when(customerRepository.existsByEmail(request.email()))
+                                .thenReturn(true);
+
+                // Act + Assert
+                assertThrows(
+                                EmailAlreadyExistsException.class,
+                                () -> customerService.create(request));
+
+                verify(customerRepository).existsByEmail(request.email());
+
+                verify(customerRepository, never())
+                                .existsByDocumentNumber(anyString());
+
+                verifyNoInteractions(documentTypeRepository);
+
+                verify(customerRepository, never())
+                                .save(any(Customer.class));
+
+                verifyNoInteractions(customerMapper);
+        }
+
+        @Test
+        void create_shouldThrowDocumentAlreadyExistsException() {
+
+                // Arrange
+                CreateCustomerRequest request = CreateCustomerRequestFactory.create();
+
+                when(customerRepository.existsByEmail(request.email()))
+                                .thenReturn(false);
+
+                when(customerRepository.existsByPhoneNumber(request.phoneNumber()))
+                                .thenReturn(false);
+
+                when(customerRepository.existsByDocumentNumber(request.documentNumber()))
+                                .thenReturn(true);
+
+                // Act + Assert
+                assertThrows(
+                                DocumentAlreadyExistsException.class,
+                                () -> customerService.create(request));
+
+                verify(customerRepository).existsByEmail(request.email());
+                verify(customerRepository).existsByPhoneNumber(request.phoneNumber());
+                verify(customerRepository).existsByDocumentNumber(request.documentNumber());
+
+                verifyNoInteractions(documentTypeRepository);
+
+                verify(customerRepository, never())
+                                .save(any(Customer.class));
+
+                verifyNoInteractions(customerMapper);
+        }
+
+        @Test
+        void findAll_shouldReturnPage() {
+
+                // Arrange
+                Pageable pageable = PageRequest.of(0, 10);
+
+                Customer customer = CustomerFactory.create(DocumentTypeFactory.create());
+                CustomerResponse response = CustomerResponseFactory.create();
+
+                PageImpl<Customer> customerPage = new PageImpl<>(List.of(customer), pageable, 1);
+
                 when(customerRepository.findAll(pageable))
-                                .thenReturn(new PageImpl<>(java.util.List.of(customer), pageable, 1));
+                                .thenReturn(customerPage);
 
-                PageResponse<CustomerResponse> result = service.findAll(pageable);
+                when(customerMapper.toResponse(customer))
+                                .thenReturn(response);
 
-                assertThat(result.content()).hasSize(1);
-                assertThat(result.content().getFirst().email())
-                                .isEqualTo(customer.getEmail());
+                // Act
+                PageResponse<CustomerResponse> result = customerService.findAll(pageable);
+
+                // Assert
+                assertNotNull(result);
+                assertEquals(1, result.content().size());
+                assertEquals(response, result.content().get(0));
+                assertEquals(0, result.page());
+                assertEquals(10, result.size());
+                assertEquals(1L, result.totalElements());
+                assertEquals(1, result.totalPages());
+                assertTrue(result.last());
 
                 verify(customerRepository).findAll(pageable);
+                verify(customerMapper).toResponse(customer);
         }
 
         @Test
-        void shouldFindCustomerById() {
+        void findById_shouldReturnCustomerWhenIdExists() {
+                // Arrange
+                UUID customerId = UUID.randomUUID();
+                Customer customer = CustomerFactory.create(DocumentTypeFactory.create());
+                customer.setId(customerId);
 
-                when(customerRepository.findById(customer.getId()))
+                CustomerResponse response = CustomerResponseFactory.create();
+
+                when(customerRepository.findById(customerId))
                                 .thenReturn(Optional.of(customer));
 
-                CustomerResponse response = service.findById(customer.getId());
+                when(customerMapper.toResponse(customer))
+                                .thenReturn(response);
 
-                assertThat(response.id())
-                                .isEqualTo(customer.getId());
+                // Act
+                CustomerResponse result = customerService.findById(customerId);
 
-                assertThat(response.email())
-                                .isEqualTo(customer.getEmail());
+                // Assert
+                assertNotNull(result);
+                assertEquals(response, result);
 
-                verify(customerRepository)
-                                .findById(customer.getId());
+                verify(customerRepository).findById(customerId);
+                verify(customerMapper).toResponse(customer);
         }
 
         @Test
-        void shouldThrowCustomerNotFound() {
+        void findById_shouldThrowCustomerNotFoundExceptionWhenIdDoesNotExist() {
+                // Arrange
+                UUID customerId = UUID.randomUUID();
 
-                UUID id = UUID.randomUUID();
-
-                when(customerRepository.findById(id))
+                when(customerRepository.findById(customerId))
                                 .thenReturn(Optional.empty());
 
-                assertThatThrownBy(() -> service.findById(id))
-                                .isInstanceOf(pt.com.bank.banking_api.exception.resources.CustomerNotFoundException.class);
+                // Act & Assert
+                assertThrows(
+                                CustomerNotFoundException.class,
+                                () -> customerService.findById(customerId));
 
-                verify(customerRepository).findById(id);
+                verify(customerRepository).findById(customerId);
+                verifyNoInteractions(customerMapper);
         }
 
         @Test
-        void shouldDeleteCustomer() {
+        void update_shouldUpdateCustomerSuccessfully() {
 
-                when(customerRepository.findById(customer.getId()))
-                                .thenReturn(Optional.of(customer));
+                // Arrange
+                UUID customerId = CustomerTestConstants.CUSTOMER_ID;
 
-                service.delete(customer.getId());
+                DocumentType documentType = DocumentTypeFactory.create();
 
-                verify(customerRepository).delete(customer);
-        }
+                UpdateCustomerRequest request = UpdateCustomerRequestFactory.create();
 
-        @Test
-        void shouldThrowCustomerNotFoundWhenDeleting() {
+                Customer customer = CustomerFactory.create(documentType);
 
-                UUID id = UUID.randomUUID();
+                CustomerResponse response = CustomerResponseFactory.create();
 
-                when(customerRepository.findById(id))
-                                .thenReturn(Optional.empty());
-
-                assertThatThrownBy(() -> service.delete(id))
-                                .isInstanceOf(pt.com.bank.banking_api.exception.resources.CustomerNotFoundException.class);
-
-                verify(customerRepository).findById(id);
-                verify(customerRepository, never()).delete(any());
-        }
-
-        @Test
-        void shouldThrowDocumentTypeNotFound() {
-
-                when(customerRepository.existsByEmail(any()))
-                                .thenReturn(false);
-
-                when(customerRepository.existsByPhoneNumber(any()))
-                                .thenReturn(false);
-
-                when(customerRepository.existsByDocumentNumber(any()))
-                                .thenReturn(false);
-
-                when(documentTypeRepository.findById(documentType.getId()))
-                                .thenReturn(Optional.empty());
-
-                assertThatThrownBy(() -> service.create(createRequest))
-                                .isInstanceOf(pt.com.bank.banking_api.exception.resources.DocumentTypeNotFoundException.class);
-
-                verify(customerRepository, never()).save(any());
-        }
-
-        @Test
-        void shouldUpdateCustomer() {
-
-                UpdateCustomerRequest request = new UpdateCustomerRequest(
-                                "Lucas Souza Updated",
-                                "lucas@email.com",
-                                "+351912345678",
-                                documentType.getId(),
-                                "123456789");
-
-                when(customerRepository.findById(customer.getId()))
+                when(customerRepository.findById(customerId))
                                 .thenReturn(Optional.of(customer));
 
                 when(customerRepository.findByEmail(request.email()))
-                                .thenReturn(Optional.of(customer));
+                                .thenReturn(Optional.empty());
 
                 when(customerRepository.findByPhoneNumber(request.phoneNumber()))
-                                .thenReturn(Optional.of(customer));
+                                .thenReturn(Optional.empty());
 
                 when(customerRepository.findByDocumentNumber(request.documentNumber()))
-                                .thenReturn(Optional.of(customer));
+                                .thenReturn(Optional.empty());
 
-                when(documentTypeRepository.findById(documentType.getId()))
+                when(documentTypeRepository.findById(request.documentTypeId()))
                                 .thenReturn(Optional.of(documentType));
 
-                when(customerRepository.save(any(Customer.class)))
+                when(customerRepository.save(customer))
                                 .thenReturn(customer);
 
-                CustomerResponse response = service.update(customer.getId(), request);
+                when(customerMapper.toResponse(customer))
+                                .thenReturn(response);
 
-                assertThat(response).isNotNull();
+                // Act
+                CustomerResponse result = customerService.update(customerId, request);
 
-                verify(customerRepository).save(any(Customer.class));
+                // Assert
+                assertNotNull(result);
+                assertEquals(response, result);
+
+                verify(customerRepository).findById(customerId);
+                verify(customerRepository).findByEmail(request.email());
+                verify(customerRepository).findByPhoneNumber(request.phoneNumber());
+                verify(customerRepository).findByDocumentNumber(request.documentNumber());
+
+                verify(documentTypeRepository).findById(request.documentTypeId());
+
+                verify(customerMapper).updateEntity(request, customer);
+
+                verify(customerRepository).save(customer);
+
+                verify(customerMapper).toResponse(customer);
         }
 
         @Test
-        void shouldThrowCustomerNotFoundWhenUpdating() {
+        void update_shouldThrowCustomerNotFoundException() {
 
-                UUID id = UUID.randomUUID();
+                // Arrange
+                UUID customerId = CustomerTestConstants.CUSTOMER_ID;
 
-                UpdateCustomerRequest request = new UpdateCustomerRequest(
-                                "Lucas Souza",
-                                "lucas@email.com",
-                                "+351912345678",
-                                documentType.getId(),
-                                "123456789");
+                UpdateCustomerRequest request = UpdateCustomerRequestFactory.create();
 
-                when(customerRepository.findById(id))
+                when(customerRepository.findById(customerId))
                                 .thenReturn(Optional.empty());
 
-                assertThatThrownBy(() -> service.update(id, request))
-                                .isInstanceOf(CustomerNotFoundException.class);
+                // Act + Assert
+                assertThrows(CustomerNotFoundException.class,
+                                () -> customerService.update(customerId, request));
 
+                verify(customerRepository).findById(customerId);
+
+                verifyNoInteractions(documentTypeRepository);
                 verify(customerRepository, never()).save(any());
+                verifyNoInteractions(customerMapper);
         }
 
         @Test
-        void shouldThrowDocumentTypeNotFoundWhenUpdating() {
+        void update_shouldThrowEmailAlreadyExistsException() {
 
-                UUID nonexistentDocumentTypeId = UUID.randomUUID();
-                UpdateCustomerRequest request = new UpdateCustomerRequest(
-                                "Lucas Souza",
-                                "lucas@email.com",
-                                "+351912345678",
-                                nonexistentDocumentTypeId,
-                                "123456789");
+                // Arrange
+                UUID customerId = CustomerTestConstants.CUSTOMER_ID;
 
-                when(customerRepository.findById(customer.getId()))
+                UpdateCustomerRequest request = UpdateCustomerRequestFactory.create();
+
+                Customer customer = CustomerFactory.create(DocumentTypeFactory.create());
+
+                Customer anotherCustomer = CustomerFactory.create(DocumentTypeFactory.create());
+
+                anotherCustomer.setId(UUID.randomUUID());
+
+                when(customerRepository.findById(customerId))
                                 .thenReturn(Optional.of(customer));
 
                 when(customerRepository.findByEmail(request.email()))
+                                .thenReturn(Optional.of(anotherCustomer));
+
+                // Act + Assert
+                assertThrows(
+                                EmailAlreadyExistsException.class,
+                                () -> customerService.update(customerId, request));
+
+                verify(customerRepository).findById(customerId);
+                verify(customerRepository).findByEmail(request.email());
+
+                verify(customerRepository, never())
+                                .findByPhoneNumber(anyString());
+
+                verify(customerRepository, never())
+                                .findByDocumentNumber(anyString());
+
+                verifyNoInteractions(documentTypeRepository);
+
+                verify(customerRepository, never())
+                                .save(any(Customer.class));
+
+                verify(customerMapper, never())
+                                .updateEntity(any(), any());
+
+                verify(customerMapper, never())
+                                .toResponse(any());
+        }
+
+        @Test
+        void update_shouldThrowPhoneNumberAlreadyExistsException() {
+
+                // Arrange
+                UUID customerId = CustomerTestConstants.CUSTOMER_ID;
+
+                UpdateCustomerRequest request = UpdateCustomerRequestFactory.create();
+
+                Customer customer = CustomerFactory.create(DocumentTypeFactory.create());
+
+                Customer anotherCustomer = CustomerFactory.create(DocumentTypeFactory.create());
+
+                anotherCustomer.setId(UUID.randomUUID());
+
+                when(customerRepository.findById(customerId))
                                 .thenReturn(Optional.of(customer));
 
-                when(customerRepository.findByPhoneNumber(request.phoneNumber()))
-                                .thenReturn(Optional.of(customer));
-
-                when(customerRepository.findByDocumentNumber(request.documentNumber()))
-                                .thenReturn(Optional.of(customer));
-
-                when(documentTypeRepository.findById(nonexistentDocumentTypeId))
+                when(customerRepository.findByEmail(request.email()))
                                 .thenReturn(Optional.empty());
 
-                assertThatThrownBy(() -> service.update(customer.getId(), request))
-                                .isInstanceOf(pt.com.bank.banking_api.exception.resources.DocumentTypeNotFoundException.class);
-
-                verify(customerRepository, never()).save(any());
-        }
-
-        @Test
-        void shouldThrowDuplicatedEmailOnUpdate() {
-
-                UpdateCustomerRequest request = new UpdateCustomerRequest(
-                                "Lucas Souza",
-                                "novo@email.com",
-                                "+351912345678",
-                                documentType.getId(),
-                                "123456789");
-
-                Customer anotherCustomer = Customer.builder()
-                                .id(UUID.randomUUID())
-                                .email("novo@email.com")
-                                .build();
-
-                when(customerRepository.findById(customer.getId()))
-                                .thenReturn(Optional.of(customer));
-
-                when(customerRepository.findByEmail(request.email()))
-                                .thenReturn(Optional.of(anotherCustomer));
-
-                assertThatThrownBy(() -> service.update(customer.getId(), request))
-                                .isInstanceOf(EmailAlreadyExistsException.class);
-
-                verify(customerRepository, never()).save(any());
-        }
-
-        @Test
-        void shouldThrowDuplicatedPhoneOnUpdate() {
-
-                UpdateCustomerRequest request = new UpdateCustomerRequest(
-                                "Lucas Souza",
-                                "lucas@email.com",
-                                "+351999999999",
-                                documentType.getId(),
-                                "123456789");
-
-                Customer anotherCustomer = Customer.builder()
-                                .id(UUID.randomUUID())
-                                .phoneNumber("+351999999999")
-                                .build();
-
-                when(customerRepository.findById(customer.getId()))
-                                .thenReturn(Optional.of(customer));
-
-                when(customerRepository.findByEmail(request.email()))
-                                .thenReturn(Optional.of(customer));
-
                 when(customerRepository.findByPhoneNumber(request.phoneNumber()))
                                 .thenReturn(Optional.of(anotherCustomer));
 
-                assertThatThrownBy(() -> service.update(customer.getId(), request))
-                                .isInstanceOf(PhoneNumberAlreadyExistsException.class);
+                // Act + Assert
+                assertThrows(
+                                PhoneNumberAlreadyExistsException.class,
+                                () -> customerService.update(customerId, request));
 
-                verify(customerRepository, never()).save(any());
+                verify(customerRepository).findById(customerId);
+                verify(customerRepository).findByEmail(request.email());
+                verify(customerRepository).findByPhoneNumber(request.phoneNumber());
+
+                verify(customerRepository, never())
+                                .findByDocumentNumber(anyString());
+
+                verifyNoInteractions(documentTypeRepository);
+
+                verify(customerRepository, never())
+                                .save(any(Customer.class));
+
+                verify(customerMapper, never())
+                                .updateEntity(any(), any());
+
+                verify(customerMapper, never())
+                                .toResponse(any());
         }
 
         @Test
-        void shouldThrowDuplicatedDocumentOnUpdate() {
+        void update_shouldThrowDocumentAlreadyExistsException() {
 
-                UpdateCustomerRequest request = new UpdateCustomerRequest(
-                                "Lucas Souza",
-                                "lucas@email.com",
-                                "+351912345678",
-                                documentType.getId(),
-                                "999999999");
+                // Arrange
+                UUID customerId = CustomerTestConstants.CUSTOMER_ID;
 
-                Customer anotherCustomer = Customer.builder()
-                                .id(UUID.randomUUID())
-                                .documentNumber("999999999")
-                                .build();
+                UpdateCustomerRequest request = UpdateCustomerRequestFactory.create();
 
-                when(customerRepository.findById(customer.getId()))
+                Customer customer = CustomerFactory.create(DocumentTypeFactory.create());
+
+                Customer anotherCustomer = CustomerFactory.create(DocumentTypeFactory.create());
+
+                anotherCustomer.setId(UUID.randomUUID());
+
+                when(customerRepository.findById(customerId))
                                 .thenReturn(Optional.of(customer));
 
                 when(customerRepository.findByEmail(request.email()))
-                                .thenReturn(Optional.of(customer));
+                                .thenReturn(Optional.empty());
 
                 when(customerRepository.findByPhoneNumber(request.phoneNumber()))
-                                .thenReturn(Optional.of(customer));
+                                .thenReturn(Optional.empty());
 
                 when(customerRepository.findByDocumentNumber(request.documentNumber()))
                                 .thenReturn(Optional.of(anotherCustomer));
 
-                assertThatThrownBy(() -> service.update(customer.getId(), request))
-                                .isInstanceOf(DocumentAlreadyExistsException.class);
+                // Act + Assert
+                assertThrows(
+                                DocumentAlreadyExistsException.class,
+                                () -> customerService.update(customerId, request));
 
-                verify(customerRepository, never()).save(any());
+                verify(customerRepository).findById(customerId);
+                verify(customerRepository).findByEmail(request.email());
+                verify(customerRepository).findByPhoneNumber(request.phoneNumber());
+                verify(customerRepository).findByDocumentNumber(request.documentNumber());
+
+                verifyNoInteractions(documentTypeRepository);
+
+                verify(customerRepository, never())
+                                .save(any(Customer.class));
+
+                verify(customerMapper, never())
+                                .updateEntity(any(), any());
+
+                verify(customerMapper, never())
+                                .toResponse(any());
         }
 
+        @Test
+        void delete_shouldDeleteCustomerSuccessfully() {
+
+                // Arrange
+                UUID customerId = CustomerTestConstants.CUSTOMER_ID;
+
+                Customer customer = CustomerFactory.create(DocumentTypeFactory.create());
+
+                when(customerRepository.findById(customerId))
+                                .thenReturn(Optional.of(customer));
+
+                // Act
+                customerService.delete(customerId);
+
+                // Assert
+                verify(customerRepository).findById(customerId);
+                verify(customerRepository).delete(customer);
+
+                verifyNoInteractions(documentTypeRepository);
+                verifyNoInteractions(customerMapper);
+        }
+
+        @Test
+        void delete_shouldThrowCustomerNotFoundException() {
+
+                // Arrange
+                UUID customerId = CustomerTestConstants.CUSTOMER_ID;
+
+                when(customerRepository.findById(customerId))
+                                .thenReturn(Optional.empty());
+
+                // Act + Assert
+                assertThrows(
+                                CustomerNotFoundException.class,
+                                () -> customerService.delete(customerId));
+
+                verify(customerRepository).findById(customerId);
+
+                verify(customerRepository, never())
+                                .delete(any(Customer.class));
+
+                verifyNoInteractions(documentTypeRepository);
+                verifyNoInteractions(customerMapper);
+        }
 }

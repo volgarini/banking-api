@@ -5,11 +5,8 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mapstruct.factory.Mappers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -17,88 +14,127 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import pt.com.bank.banking_api.dto.response.DocumentTypeResponse;
 import pt.com.bank.banking_api.entity.DocumentType;
 import pt.com.bank.banking_api.exception.resources.DocumentTypeNotFoundException;
+import pt.com.bank.banking_api.factory.constants.DocumentTypeTestConstants;
+import pt.com.bank.banking_api.factory.entity.DocumentTypeFactory;
+import pt.com.bank.banking_api.factory.response.DocumentTypeResponseFactory;
 import pt.com.bank.banking_api.mapper.DocumentTypeMapper;
 import pt.com.bank.banking_api.repository.DocumentTypeRepository;
 import pt.com.bank.banking_api.service.impl.DocumentTypeServiceImpl;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @ExtendWith(MockitoExtension.class)
 class DocumentTypeServiceImplTest {
 
-    @Mock
-    private DocumentTypeRepository repository;
+        @Mock
+        private DocumentTypeRepository documentTypeRepository;
 
-    private final DocumentTypeMapper mapper =
-            Mappers.getMapper(DocumentTypeMapper.class);
+        @Mock
+        private DocumentTypeMapper documentTypeMapper;
 
-    @InjectMocks
-    private DocumentTypeServiceImpl service;
+        @InjectMocks
+        private DocumentTypeServiceImpl documentTypeService;
 
-    @Test
-    void shouldFindAllDocumentTypes() {
+        @Test
+        void findAll_shouldReturnAllDocumentTypes() {
 
-        UUID id = UUID.randomUUID();
+                // Arrange
+                DocumentType documentType = DocumentTypeFactory.create();
 
-        DocumentType type = new DocumentType();
-        type.setId(id);
-        type.setCode("CPF");
-        type.setDescription("Brazilian CPF");
+                DocumentTypeResponse response = DocumentTypeResponseFactory.from(documentType);
 
-        when(repository.findAll())
-                .thenReturn(List.of(type));
+                when(documentTypeRepository.findAll())
+                                .thenReturn(List.of(documentType));
 
-        DocumentTypeServiceImpl service =
-                new DocumentTypeServiceImpl(repository, mapper);
+                when(documentTypeMapper.toResponse(documentType))
+                                .thenReturn(response);
 
-        List<DocumentTypeResponse> result = service.findAll();
+                // Act
+                List<DocumentTypeResponse> responses = documentTypeService.findAll();
 
-        assertThat(result).hasSize(1);
-        assertThat(result.getFirst().code()).isEqualTo("CPF");
+                // Assert
+                assertEquals(1, responses.size());
 
-        verify(repository).findAll();
-    }
+                assertEquals(
+                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID,
+                                responses.getFirst().id());
 
-    @Test
-    void shouldFindDocumentTypeById() {
+                assertEquals(
+                                DocumentTypeTestConstants.DEFAULT_DOCUMENT,
+                                responses.getFirst().code());
 
-        UUID id = UUID.randomUUID();
+                verify(documentTypeRepository).findAll();
+                verify(documentTypeMapper).toResponse(documentType);
+        }
 
-        DocumentType type = new DocumentType();
-        type.setId(id);
-        type.setCode("PASSPORT");
-        type.setDescription("Passport");
+        @Test
+        void findAll_shouldReturnEmptyList() {
 
-        when(repository.findById(id))
-                .thenReturn(Optional.of(type));
+                // Arrange
+                when(documentTypeRepository.findAll())
+                                .thenReturn(List.of());
 
-        DocumentTypeServiceImpl service =
-                new DocumentTypeServiceImpl(repository, mapper);
+                // Act
+                List<DocumentTypeResponse> responses = documentTypeService.findAll();
 
-        DocumentTypeResponse response = service.findById(id);
+                // Assert
+                assertEquals(0, responses.size());
 
-        assertThat(response.id()).isEqualTo(id);
-        assertThat(response.code()).isEqualTo("PASSPORT");
+                verify(documentTypeRepository).findAll();
+        }
 
-        verify(repository).findById(id);
-    }
+        @Test
+        void findById_shouldReturnDocumentTypeSuccessfully() {
 
-    @Test
-    void shouldThrowExceptionWhenDocumentTypeDoesNotExist() {
+                // Arrange
+                DocumentType documentType = DocumentTypeFactory.create();
 
-        UUID id = UUID.randomUUID();
+                DocumentTypeResponse response = DocumentTypeResponseFactory.from(documentType);
 
-        when(repository.findById(id))
-                .thenReturn(Optional.empty());
+                when(documentTypeRepository.findById(
+                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID))
+                                .thenReturn(Optional.of(documentType));
 
-        DocumentTypeServiceImpl service =
-                new DocumentTypeServiceImpl(repository, mapper);
+                when(documentTypeMapper.toResponse(documentType))
+                                .thenReturn(response);
 
-        assertThatThrownBy(() -> service.findById(id))
-                .isInstanceOf(DocumentTypeNotFoundException.class)
-                .hasMessageContaining(id.toString());
+                // Act
+                DocumentTypeResponse result = documentTypeService.findById(
+                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID);
 
-        verify(repository).findById(id);
-    }
+                // Assert
+                assertEquals(
+                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID,
+                                result.id());
+
+                assertEquals(
+                                DocumentTypeTestConstants.DEFAULT_DOCUMENT,
+                                result.code());
+
+                verify(documentTypeRepository)
+                                .findById(DocumentTypeTestConstants.DOCUMENT_TYPE_ID);
+
+                verify(documentTypeMapper)
+                                .toResponse(documentType);
+        }
+
+        @Test
+        void findById_shouldThrowDocumentTypeNotFoundException() {
+
+                // Arrange
+                when(documentTypeRepository.findById(
+                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID))
+                                .thenReturn(Optional.empty());
+
+                // Act + Assert
+                assertThrows(
+                                DocumentTypeNotFoundException.class,
+                                () -> documentTypeService.findById(
+                                                DocumentTypeTestConstants.DOCUMENT_TYPE_ID));
+
+                verify(documentTypeRepository)
+                                .findById(DocumentTypeTestConstants.DOCUMENT_TYPE_ID);
+        }
 
 }

@@ -28,7 +28,6 @@ import pt.com.bank.banking_api.entity.Account;
 import pt.com.bank.banking_api.entity.Customer;
 import pt.com.bank.banking_api.entity.DocumentType;
 import pt.com.bank.banking_api.enums.AccountType;
-import pt.com.bank.banking_api.exception.resources.CustomerNotFoundException;
 import pt.com.bank.banking_api.factory.constants.AccountTestConstants;
 import pt.com.bank.banking_api.factory.constants.CustomerTestConstants;
 import pt.com.bank.banking_api.factory.entity.AccountFactory;
